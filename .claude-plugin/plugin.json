@@ -1,0 +1,49 @@
+{
+  "name": "learn-claude-code",
+  "displayName": "Learn Claude Code Integration",
+  "version": "1.0.0",
+  "description": "A practical plugin demonstrating all four Claude Code extension technologies: Plugin container, Agent Skills, Subagents, and MCP Servers with GitHub integration.",
+  "author": {
+    "name": "abereyes"
+  },
+  "engines": {
+    "claudeCode": ">=0.1.0"
+  },
+  "categories": ["Development", "Code Review", "Git Workflow"],
+  "keywords": ["github", "code-review", "git", "analysis", "workflow"],
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "license": "MIT",
+  "main": "",
+  "activationEvents": [
+    "onCommand:code-review",
+    "onCommand:analyze-code",
+    "onCommand:git-workflow"
+  ],
+  "contributes": {
+    "skills": [
+      {
+        "name": "code-analysis",
+        "path": "skills/code-analysis",
+        "description": "Analyze code quality, detect patterns, and identify issues locally"
+      },
+      {
+        "name": "git-workflow",
+        "path": "skills/git-workflow",
+        "description": "Git operations, commit message generation, and branch management"
+      }
+    ],
+    "agents": [
+      {
+        "name": "code-reviewer",
+        "path": "agents/code-reviewer.md",
+        "description": "Senior code reviewer with GitHub integration for comprehensive code reviews"
+      }
+    ],
+    "mcp": {
+      "configPath": ".mcp.json"
+    }
+  }
+}

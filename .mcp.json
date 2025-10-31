@@ -1,0 +1,63 @@
+{
+  "mcpServers": {
+    "puppeteer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "description": "Browser automation server for UI testing, accessibility checks, and visual verification",
+      "capabilities": [
+        "Launch and control browsers (Chrome, Firefox)",
+        "Navigate to URLs and interact with pages",
+        "Take screenshots for visual verification",
+        "Test accessibility (ARIA, keyboard navigation, screen readers)",
+        "Run E2E tests (clicks, forms, user flows)",
+        "Measure performance (load times, rendering)",
+        "Test responsive design (different viewport sizes)"
+      ],
+      "notes": [
+        "Requires Node.js and npm to be installed",
+        "First run will download @modelcontextprotocol/server-puppeteer package",
+        "Chrome/Chromium will be downloaded automatically by Puppeteer if not present",
+        "Runs in headless mode by default for faster, safer execution",
+        "Can be configured to show browser window for debugging"
+      ]
+    }
+  },
+  "metadata": {
+    "plugin": "learn-claude-code",
+    "version": "1.0.0",
+    "description": "MCP configuration for Learn Claude Code plugin - enables browser automation for UI testing",
+    "requirements": {
+      "nodejs": ">=16.0.0",
+      "npm": ">=7.0.0"
+    },
+    "setup_instructions": [
+      "1. Ensure Node.js and npm are installed",
+      "2. Run 'npm install -g @modelcontextprotocol/server-puppeteer' (optional, npx will auto-install)",
+      "3. Puppeteer will download Chrome/Chromium on first use",
+      "4. Test connection: ui-tester subagent should be able to launch browser"
+    ],
+    "troubleshooting": {
+      "chrome_not_found": "Puppeteer will download Chrome automatically. If issues persist, install Chrome manually.",
+      "permission_denied": "Ensure Node.js and npm have proper permissions. May need to run with appropriate user privileges.",
+      "slow_first_run": "First run downloads packages and Chrome, which can take 1-2 minutes. Subsequent runs are fast.",
+      "connection_failed": "Check that no firewall is blocking localhost connections. Puppeteer needs local network access."
+    }
+  },
+  "integration": {
+    "subagents": [
+      "ui-tester"
+    ],
+    "skills": [],
+    "use_cases": [
+      "Test UI components in real browser",
+      "Verify accessibility compliance (WCAG)",
+      "Take screenshots for visual regression testing",
+      "Run E2E tests for user workflows",
+      "Check responsive design at different viewport sizes",
+      "Measure page performance and load times"
+    ]
+  }
+}
