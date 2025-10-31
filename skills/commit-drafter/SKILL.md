@@ -22,7 +22,6 @@ Automatically generates commit messages by analyzing your staged changes.
 - Extracts full diff content with statistics
 - Provides structured context to Claude (the AI)
 - Claude writes a meaningful commit message based on actual changes
-- Includes Claude Code attribution
 
 ## Usage
 
