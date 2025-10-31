@@ -19,8 +19,7 @@
   "main": "",
   "activationEvents": [
     "onCommand:code-review",
-    "onCommand:analyze-code",
-    "onCommand:git-workflow"
+    "onCommand:analyze-code"
   ],
   "contributes": {
     "skills": [
@@ -30,16 +29,16 @@
         "description": "Analyze code quality, detect patterns, and identify issues locally"
       },
       {
-        "name": "git-workflow",
-        "path": "skills/git-workflow",
-        "description": "Git operations, commit message generation, and branch management"
+        "name": "commit-drafter",
+        "path": "skills/commit-drafter",
+        "description": "Automatically draft commit messages by analyzing git changes"
       }
     ],
     "agents": [
       {
-        "name": "code-reviewer",
-        "path": "agents/code-reviewer.md",
-        "description": "Senior code reviewer with GitHub integration for comprehensive code reviews"
+        "name": "ui-tester",
+        "path": "agents/ui-tester.md",
+        "description": "UI/UX testing specialist using browser automation"
       }
     ],
     "mcp": {
