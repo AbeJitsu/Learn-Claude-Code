@@ -5,14 +5,18 @@ Code Readability Analyzer
 What: Checks if code is accessible to non-developers
 Why: Ensures code can be understood by everyone on the team, not just developers
 How: Analyzes naming, comments, jargon, and documentation to score readability
+
+This tool helps teams write code that managers, stakeholders, and new team members
+can understand without needing deep programming knowledge.
 """
 
-import argparse
-import os
-import re
-import json
-from pathlib import Path
-from typing import Dict, List, Tuple
+# Import required libraries
+import argparse  # For command-line argument parsing
+import os        # For file system operations
+import re        # For pattern matching in code
+import json      # For JSON output format
+from pathlib import Path        # For file path handling
+from typing import Dict, List, Tuple  # For type hints
 
 # What: Common technical jargon that needs explanation
 # Why: Non-developers won't understand these terms
@@ -27,40 +31,38 @@ TECHNICAL_JARGON = [
 ]
 
 # What: Cryptic abbreviations commonly used in variable names
-# Why: These are unclear to non-developers and should be spelled out
-# How: We check variable names against this list
+# Why: These are truly unclear to non-developers and should be spelled out
+# How: We check variable names against this list (only the most cryptic ones)
 CRYPTIC_ABBREVIATIONS = [
-    r'\b(usr|u)(_|[A-Z])',  # usr, u_ - should be "user"
+    r'\b(usr)(_|[A-Z])',  # usr - should be "user"
     r'\b(tkn|tok)(_|[A-Z])',  # tkn, tok - should be "token"
-    r'\b(msg)(_|[A-Z])',  # msg - should be "message"
     r'\b(cfg|conf)(_|[A-Z])',  # cfg, conf - should be "config"
     r'\b(ctx)(_|[A-Z])',  # ctx - should be "context"
-    r'\b(req)(_|[A-Z])',  # req - should be "request"
-    r'\b(res|resp)(_|[A-Z])',  # res, resp - should be "response"
-    r'\b(arr)(_|[A-Z])',  # arr - should be "array" or better name
-    r'\b(obj)(_|[A-Z])',  # obj - should be specific name
     r'\b(tmp|temp)(_|[A-Z])',  # tmp, temp - should be descriptive
-    r'\b(val)(_|[A-Z])',  # val - should be "value" or better
     r'\b(idx)(_|[A-Z])',  # idx - should be "index"
-    r'\b(len)(_|[A-Z])',  # len - should be "length"
-    r'\b(num)(_|[A-Z])',  # num - should be "number" or specific
-    r'\b(str)(_|[A-Z])',  # str - should be descriptive
     r'\b(cnt)(_|[A-Z])',  # cnt - should be "count"
     r'\b(proc)(_|[A-Z])',  # proc - should be "process"
     r'\b(calc)(_|[A-Z])',  # calc - should be "calculate"
 ]
 
-# Supported file extensions
+# Note: Removed common abbreviations that are widely understood:
+# - num, str, len (standard and clear in context)
+# - msg, req, res, resp (common in web/API contexts, API = Application Programming Interface, how programs talk to each other)
+# - arr, obj, val (commonly understood programming terms)
+
+# What: Supported file extensions and their languages
+# Why: We need to know which language we're analyzing
+# How: Map file extension to language name
 SUPPORTED_EXTENSIONS = {
-    '.py': 'python',
-    '.js': 'javascript',
-    '.ts': 'typescript',
-    '.jsx': 'javascript',
-    '.tsx': 'typescript',
-    '.java': 'java',
-    '.go': 'go',
-    '.rb': 'ruby',
-    '.php': 'php',
+    '.py': 'python',      # Python files
+    '.js': 'javascript',  # JavaScript files
+    '.ts': 'typescript',  # TypeScript files
+    '.jsx': 'javascript', # React JavaScript files
+    '.tsx': 'typescript', # React TypeScript files
+    '.java': 'java',      # Java files
+    '.go': 'go',          # Go files
+    '.rb': 'ruby',        # Ruby files
+    '.php': 'php',        # PHP files
 }
 
 
@@ -72,6 +74,11 @@ class ReadabilityIssue:
     """
     def __init__(self, line_num: int, issue_type: str, description: str,
                  code_snippet: str = "", suggestion: str = ""):
+        """
+        What: Initialize a new readability issue
+        Why: Set up all the details about what's wrong
+        How: Store the line number, issue type, description, and suggestion
+        """
         self.line_num = line_num
         self.issue_type = issue_type
         self.description = description
@@ -79,6 +86,11 @@ class ReadabilityIssue:
         self.suggestion = suggestion
 
     def to_dict(self):
+        """
+        What: Convert issue to dictionary format
+        Why: Makes it easy to output as JSON or display in reports
+        How: Create dict with all issue details
+        """
         return {
             'line': self.line_num,
             'type': self.issue_type,
@@ -98,6 +110,23 @@ class CodeReadabilityAnalyzer:
     def __init__(self, strictness: str = 'standard'):
         self.strictness = strictness
         self.issues: List[ReadabilityIssue] = []
+
+    def _strip_strings_and_comments(self, line: str) -> str:
+        """
+        What: Remove string literals and comments from a line
+        Why: We only want to check actual code, not examples in strings/comments
+        How: Use regex to strip quoted strings and comment markers
+        """
+        # Remove string literals (both single and double quotes)
+        # This handles most common cases but not all edge cases
+        line_cleaned = re.sub(r'"[^"]*"', '""', line)  # Remove double-quoted strings
+        line_cleaned = re.sub(r"'[^']*'", "''", line_cleaned)  # Remove single-quoted strings
+
+        # Remove comments (anything after # or //)
+        line_cleaned = re.sub(r'#.*$', '', line_cleaned)
+        line_cleaned = re.sub(r'//.*$', '', line_cleaned)
+
+        return line_cleaned
 
     def analyze_file(self, file_path: str) -> Dict:
         """
@@ -146,21 +175,55 @@ class CodeReadabilityAnalyzer:
         """
         What: Check for cryptic variable and function names
         Why: Non-developers can't understand abbreviations
-        How: Use regex patterns to detect common abbreviations
+        How: Use regex patterns to detect common abbreviations in actual code only
         """
+        in_docstring = False
+        docstring_marker = None
+
+        # Loop through each line in the file
         for line_num, line in enumerate(lines, 1):
-            # Skip comments and strings
-            if line.strip().startswith('#') or line.strip().startswith('//'):
+            stripped = line.strip()
+
+            # Track docstring blocks (""" or ''')
+            # We don't want to check code examples inside docstrings
+            if '"""' in line or "'''" in line:
+                if not in_docstring:
+                    # Starting a docstring
+                    in_docstring = True
+                    docstring_marker = '"""' if '"""' in line else "'''"
+                    # Check if it ends on the same line (single-line docstring)
+                    if line.count(docstring_marker) >= 2:
+                        in_docstring = False
+                else:
+                    # Ending a docstring
+                    in_docstring = False
                 continue
 
-            # Check for cryptic abbreviations
+            # Skip if inside docstring (don't check documentation text)
+            if in_docstring:
+                continue
+
+            # Skip comment-only lines (already just documentation)
+            if stripped.startswith('#') or stripped.startswith('//'):
+                continue
+
+            # Clean the line - remove strings and comments before checking
+            # This prevents flagging examples like "usr_tkn" in comments
+            line_cleaned = self._strip_strings_and_comments(line)
+
+            # Skip if nothing left after cleaning (line was all comments/strings)
+            if not line_cleaned.strip():
+                continue
+
+            # Check for cryptic abbreviations in the cleaned line
+            # These patterns match things like usr_, tkn_, cfg_, etc.
             for pattern in CRYPTIC_ABBREVIATIONS:
-                matches = re.finditer(pattern, line, re.IGNORECASE)
+                matches = re.finditer(pattern, line_cleaned)
                 for match in matches:
-                    # Extract the variable name context
+                    # Extract the variable name context from the cleaned line
                     start = max(0, match.start() - 10)
-                    end = min(len(line), match.end() + 20)
-                    snippet = line[start:end].strip()
+                    end = min(len(line_cleaned), match.end() + 20)
+                    snippet = line_cleaned[start:end].strip()
 
                     self.issues.append(ReadabilityIssue(
                         line_num=line_num,
@@ -170,9 +233,9 @@ class CodeReadabilityAnalyzer:
                         suggestion='Use full, descriptive names like "userToken" instead of "usr_tkn"'
                     ))
 
-            # Check for single-letter variables (except in loops)
-            if not re.search(r'\b(for|while)\b', line):
-                single_letters = re.finditer(r'\b([a-z])\s*=', line)
+            # Check for single-letter variables (except in loops) in cleaned line
+            if not re.search(r'\b(for|while)\b', line_cleaned):
+                single_letters = re.finditer(r'\b([a-z])\s*=', line_cleaned)
                 for match in single_letters:
                     if match.group(1) not in ['i', 'j', 'k']:  # Common loop counters
                         self.issues.append(ReadabilityIssue(
@@ -189,18 +252,21 @@ class CodeReadabilityAnalyzer:
         Why: Comments help non-developers understand what's happening
         How: Count code lines vs comment lines, flag uncommented sections
         """
+        # Initialize counters for tracking comment coverage
         code_line_count = 0
         comment_line_count = 0
         uncommented_code_lines = 0
 
+        # Go through each line and categorize it
         for line_num, line in enumerate(lines, 1):
             stripped = line.strip()
 
-            # Skip empty lines
+            # Skip empty lines (don't count these)
             if not stripped:
                 continue
 
             # Check if it's a comment
+            # We look for common comment markers across languages
             is_comment = (stripped.startswith('#') or
                          stripped.startswith('//') or
                          stripped.startswith('/*') or
@@ -208,12 +274,13 @@ class CodeReadabilityAnalyzer:
 
             if is_comment:
                 comment_line_count += 1
-                uncommented_code_lines = 0  # Reset counter
+                uncommented_code_lines = 0  # Reset counter when we hit a comment
             elif stripped:
                 code_line_count += 1
                 uncommented_code_lines += 1
 
                 # Flag sections with too much code without comments
+                # 10+ lines without comments is hard for non-devs to follow
                 if uncommented_code_lines > 10 and self.strictness in ['standard', 'strict']:
                     self.issues.append(ReadabilityIssue(
                         line_num=line_num,
@@ -225,6 +292,7 @@ class CodeReadabilityAnalyzer:
                     uncommented_code_lines = 0  # Reset after flagging
 
         # Overall comment ratio check
+        # We want at least 20% of lines to be comments
         if code_line_count > 0:
             comment_ratio = comment_line_count / code_line_count
             if comment_ratio < 0.2:  # Less than 20% comments
@@ -241,22 +309,28 @@ class CodeReadabilityAnalyzer:
         Why: Non-developers won't understand technical terms
         How: Look for jargon words in comments without explanations
         """
+        # Loop through each line looking for technical terms
         for line_num, line in enumerate(lines, 1):
             stripped = line.strip()
 
-            # Only check comments
+            # Only check comments (not code)
             if not (stripped.startswith('#') or stripped.startswith('//')):
                 continue
 
-            # Remove comment markers
+            # Remove comment markers to get the actual text
             comment_text = re.sub(r'^[#/]+\s*', '', stripped)
 
-            # Check for jargon
+            # Check for jargon terms from our list
+            # Use word boundaries to avoid matching ORM = Object-Relational Mapping inside words like "format"
             for jargon in TECHNICAL_JARGON:
-                if jargon.lower() in comment_text.lower():
-                    # Check if there's an explanation (= sign or "is" or "means")
+                # Only match whole words, not substrings
+                pattern = r'\b' + re.escape(jargon.lower()) + r'\b'
+                if re.search(pattern, comment_text.lower()):
+                    # Check if there's an explanation
+                    # Look for = sign, "is", "means", or : which usually introduce explanations
                     has_explanation = any(marker in comment_text for marker in ['=', ' is ', ' means ', ':'])
 
+                    # Flag jargon without explanation
                     if not has_explanation:
                         self.issues.append(ReadabilityIssue(
                             line_num=line_num,
@@ -290,14 +364,14 @@ class CodeReadabilityAnalyzer:
                     in_function = True
                     function_line = line_num
 
-                    # Look for What/Why/How documentation in previous lines
+                    # Look for What/Why/How documentation in docstring (next 10 lines after function def)
                     has_what = False
                     has_why = False
                     has_how = False
 
-                    # Check previous 10 lines for documentation
-                    start = max(0, line_num - 11)
-                    for check_line in lines[start:line_num - 1]:
+                    # Check next 10 lines for documentation (docstring comes after def)
+                    end = min(len(lines), line_num + 10)
+                    for check_line in lines[line_num:end]:
                         if 'what:' in check_line.lower():
                             has_what = True
                         if 'why:' in check_line.lower():
@@ -346,28 +420,33 @@ class CodeReadabilityAnalyzer:
         Why: Give users a quick sense of how readable their code is
         How: Start at 100, deduct points for each issue type
         """
+        # Start with a perfect score
         score = 100
 
+        # Handle edge case of empty file
         if total_lines == 0:
             return 0
 
         # Deduct points based on issue density
+        # More issues relative to file size means lower score
         issue_density = len(self.issues) / total_lines
 
         # Categorize issues and apply different weights
+        # More serious issues (like missing comments) deduct more points
         issue_weights = {
-            'cryptic_naming': 3,
-            'missing_comments': 5,
-            'insufficient_comments': 10,
-            'unexplained_jargon': 4,
-            'missing_documentation': 5,
+            'cryptic_naming': 3,           # Unclear names hurt readability
+            'missing_comments': 5,          # Uncommented code is hard to follow
+            'insufficient_comments': 10,    # Overall low comment ratio is serious
+            'unexplained_jargon': 4,        # Jargon blocks non-dev understanding
+            'missing_documentation': 5,     # Missing What/Why/How hurts comprehension
         }
 
+        # Deduct points for each issue found
         for issue in self.issues:
             weight = issue_weights.get(issue.issue_type, 2)
             score -= weight
 
-        # Floor at 0
+        # Floor at 0 (can't go negative)
         return max(0, score)
 
     def _generate_summary(self, score: int) -> str:
@@ -394,9 +473,12 @@ def main():
     Why: Allow the skill to execute this script from bash
     How: Parse arguments and run the analysis
     """
+    # Set up command-line argument parser
     parser = argparse.ArgumentParser(
         description='Analyze code readability for non-developers'
     )
+
+    # Define all the command-line options
     parser.add_argument('--path', required=True, help='Path to file or directory to analyze')
     parser.add_argument('--focus', default='all',
                        choices=['naming', 'comments', 'jargon', 'documentation', 'all'],
@@ -411,19 +493,22 @@ def main():
                        choices=['human', 'json'],
                        help='Output format')
 
+    # Parse the arguments provided by the user
     args = parser.parse_args()
 
-    # Create analyzer
+    # Create analyzer with the requested strictness level
     analyzer = CodeReadabilityAnalyzer(strictness=args.strictness)
 
-    # Analyze the file
+    # Analyze the file and get results
     result = analyzer.analyze_file(args.path)
 
-    # Output results
+    # Output results in the requested format
     if args.format == 'json':
+        # JSON format (JavaScript Object Notation = data format computers can easily read) - useful for tools and scripts
         print(json.dumps(result, indent=2))
     else:
-        # Human-readable output
+        # Human-readable output format
+        # Print header with file information
         print(f"\n{'='*60}")
         print(f"Code Readability Analysis")
         print(f"{'='*60}\n")
@@ -434,11 +519,13 @@ def main():
         print(f"Readability Score: {result.get('readability_score', 0)}/100")
         print(f"\nSummary: {result.get('summary', 'N/A')}\n")
 
+        # Print detailed issues if any were found
         if result.get('issues'):
             print(f"{'='*60}")
             print("Issues Found:")
             print(f"{'='*60}\n")
 
+            # Loop through each issue and display details
             for issue in result['issues']:
                 print(f"Line {issue['line']}: {issue['description']}")
                 if issue.get('code'):
